@@ -1,7 +1,7 @@
 //! type context book-keeping
 
 use dep_graph::DepGraph;
-use dep_graph::{DepNode, DepConstructor};
+use dep_graph::{self, DepNode, DepConstructor};
 use errors::DiagnosticBuilder;
 use session::Session;
 use session::config::{BorrowckMode, OutputFilenames};
@@ -1414,7 +1414,8 @@ impl<'a, 'gcx, 'tcx> TyCtxt<'a, 'gcx, 'tcx> {
             self.dep_graph.with_task(dep_node,
                                      self,
                                      crate_hash,
-                                     |_, x| x // No transformation needed
+                                     |_, x| x, // No transformation needed
+                                     dep_graph::hash_result,
             );
         }
     }
