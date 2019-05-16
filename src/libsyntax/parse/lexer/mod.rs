@@ -5,7 +5,7 @@ use crate::symbol::{sym, Symbol};
 use crate::parse::unescape;
 use crate::parse::unescape_error_reporting::{emit_unescape_error, push_escaped_char};
 
-use errors::{FatalError, Diagnostic, DiagnosticBuilder};
+use errors::{Applicability, FatalError, Diagnostic, DiagnosticBuilder};
 use syntax_pos::{BytePos, Pos, Span, NO_EXPANSION};
 use core::unicode::property::Pattern_White_Space;
 
@@ -1172,12 +1172,6 @@ impl<'a> StringReader<'a> {
                     if self.is_eof() {
                         self.fail_unterminated_raw_string(start_bpos, hash_count);
                     }
-                    // if self.ch_is('"') {
-                    // content_end_bpos = self.pos;
-                    // for _ in 0..hash_count {
-                    // self.bump();
-                    // if !self.ch_is('#') {
-                    // continue 'outer;
                     let c = self.ch.unwrap();
                     match c {
                         '"' => {
@@ -1206,6 +1200,30 @@ impl<'a> StringReader<'a> {
                 }
 
                 self.bump();
+                if self.ch_is('#') {
+                    let lo = self.pos;
+                    while self.ch_is('#') {
+                        self.bump();
+                    }
+
+                    let sp = self.mk_sp(start_bpos, self.pos);
+                    let sp_beg = self.mk_sp(BytePos(start_bpos.0 + 1), BytePos(start_bpos.0 + 1 + hash_count as u32));
+                    let sp_end = self.mk_sp(BytePos(lo.0 - hash_count as u32), self.pos);
+
+                    let mut err = self.sess.span_diagnostic.struct_span_err(sp, "too many `#` when terminating raw string");
+                    err.span_label(sp_beg, format!("The raw string has {} leading `#`...", hash_count));
+                    err.span_label(sp_end, format!("...but is closed with {}.", self.pos.0 - lo.0 + hash_count as u32));
+                    err.span_suggestion_hidden(
+                        self.mk_sp(lo, self.pos),
+                        "remove the unneeded `#`",
+                        String::new(),
+                        Applicability::MachineApplicable,
+                    );
+
+                    err.emit();
+                    valid = false;
+                }
+
                 let symbol = if valid {
                     self.name_from_to(content_start_bpos, content_end_bpos)
                 } else {
