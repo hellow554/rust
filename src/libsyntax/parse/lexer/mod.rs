@@ -165,11 +165,24 @@ impl<'a> StringReader<'a> {
         self.ch.is_none()
     }
 
-    fn fail_unterminated_raw_string(&self, pos: BytePos, hash_count: u16) {
-        let mut err = self.struct_span_fatal(pos, pos, "unterminated raw string");
-        err.span_label(self.mk_sp(pos, pos), "unterminated raw string");
+    fn fail_unterminated_raw_string(&self, start: Span, hash_count: u16, spans: Vec<Span>) -> ! {
+        const SPAN_THRESHOLD: usize = 3;
+        const MSG_STR: &str = "Raw string could be meant to end here";
+        let hash_str = format!("\"{}", "#".repeat(hash_count as usize));
+        let spans_len = spans.len();
 
-        if hash_count > 0 {
+        let mut err = self.sess.span_diagnostic.struct_span_fatal(start, "unterminated raw string");
+        err.span_label(start, "unterminated raw string");
+
+        for s in spans {
+            if spans_len < SPAN_THRESHOLD {
+                err.span_suggestion(s, MSG_STR, hash_str.clone(), Applicability::MaybeIncorrect);
+            } else {
+                err.tool_only_span_suggestion(s, MSG_STR, hash_str.clone(), Applicability::MaybeIncorrect);
+            }
+        }
+
+        if hash_count > 0 && spans_len >= SPAN_THRESHOLD {
             err.note(&format!("this raw string should be terminated with `\"{}`",
                               "#".repeat(hash_count as usize)));
         }
@@ -1111,6 +1124,7 @@ impl<'a> StringReader<'a> {
                 Ok(Token::lit(token::Char, symbol, suffix))
             }
             'b' => {
+                let start_bpos = self.pos;
                 self.bump();
                 let (kind, symbol) = match self.ch {
                     Some('\'') => {
@@ -1128,7 +1142,7 @@ impl<'a> StringReader<'a> {
                         self.validate_byte_str_escape(start_with_quote);
                         (token::ByteStr, symbol)
                     },
-                    Some('r') => self.scan_raw_string(RawStringType::Byte),
+                    Some('r') => self.scan_raw_string(start_bpos, RawStringType::Byte),
                     _ => unreachable!(),  // Should have been a token::Ident above.
                 };
                 let suffix = self.scan_optional_raw_name();
@@ -1143,7 +1157,7 @@ impl<'a> StringReader<'a> {
                 Ok(Token::lit(token::Str, symbol, suffix))
             }
             'r' => {
-                let (lit, symbol) = self.scan_raw_string(RawStringType::Unicode);
+                let (lit, symbol) = self.scan_raw_string(self.pos, RawStringType::Unicode);
                 let suffix = self.scan_optional_raw_name();
                 Ok(Token::lit(lit, symbol, suffix))
             }
@@ -1299,8 +1313,7 @@ impl<'a> StringReader<'a> {
         id
     }
 
-    fn scan_raw_string(&mut self, raw_type: RawStringType) -> (token::LitKind, Symbol) {
-        let start_bpos = self.pos;
+    fn scan_raw_string(&mut self, start_bpos: BytePos, raw_type: RawStringType) -> (token::LitKind, Symbol) {
         self.bump();
         let mut hash_count: u16 = 0;
         while self.ch_is('#') {
@@ -1314,9 +1327,10 @@ impl<'a> StringReader<'a> {
             self.bump();
             hash_count += 1;
         }
+        let bpos_span = self.mk_sp(start_bpos, self.pos);
 
         match self.ch {
-            None => self.fail_unterminated_raw_string(start_bpos, hash_count, vec![]),
+            None => self.fail_unterminated_raw_string(bpos_span, hash_count, vec![self.mk_sp(self.pos, self.pos)]),
             Some('"') => {},
             Some(c) => {
                 let last_bpos = self.pos;
@@ -1332,15 +1346,20 @@ impl<'a> StringReader<'a> {
         let content_start_bpos = self.pos;
         let mut content_end_bpos;
         let mut valid = true;
+        let mut spans = vec![];
 
         'outer: loop {
             match (self.ch, raw_type) {
-                (None, _) => self.fail_unterminated_raw_string(start_bpos, hash_count),
+                (None, _) => {
+                    spans.push(self.mk_sp(self.pos, self.pos));
+                    self.fail_unterminated_raw_string(bpos_span, hash_count, spans);
+                },
                 (Some('"'), _) => {
                     content_end_bpos = self.pos;
                     for _ in 0..hash_count {
                         self.bump();
                         if !self.ch_is('#') {
+                            spans.push(self.mk_sp(content_end_bpos, self.pos));
                             continue 'outer;
                         }
                     }
