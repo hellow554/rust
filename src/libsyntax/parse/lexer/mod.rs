@@ -176,9 +176,15 @@ impl<'a> StringReader<'a> {
 
         for s in spans {
             if spans_len < SPAN_THRESHOLD {
-                err.span_suggestion(s, MSG_STR, hash_str.clone(), Applicability::MaybeIncorrect);
+                err.span_suggestion(s,
+                                    MSG_STR,
+                                    hash_str.clone(),
+                                    Applicability::MaybeIncorrect);
             } else {
-                err.tool_only_span_suggestion(s, MSG_STR, hash_str.clone(), Applicability::MaybeIncorrect);
+                err.tool_only_span_suggestion(s,
+                                              MSG_STR,
+                                              hash_str.clone(),
+                                              Applicability::MaybeIncorrect);
             }
         }
 
@@ -1313,7 +1319,11 @@ impl<'a> StringReader<'a> {
         id
     }
 
-    fn scan_raw_string(&mut self, start_bpos: BytePos, raw_type: RawStringType) -> (token::LitKind, Symbol) {
+    fn scan_raw_string(
+        &mut self,
+        start_bpos: BytePos,
+        raw_type: RawStringType
+    ) -> (token::LitKind, Symbol) {
         self.bump();
         let mut hash_count: u16 = 0;
         while self.ch_is('#') {
@@ -1330,7 +1340,9 @@ impl<'a> StringReader<'a> {
         let bpos_span = self.mk_sp(start_bpos, self.pos);
 
         match self.ch {
-            None => self.fail_unterminated_raw_string(bpos_span, hash_count, vec![self.mk_sp(self.pos, self.pos)]),
+            None => self.fail_unterminated_raw_string(bpos_span,
+                                                      hash_count,
+                                                      vec![self.mk_sp(self.pos, self.pos)]),
             Some('"') => {},
             Some(c) => {
                 let last_bpos = self.pos;
