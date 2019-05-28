@@ -1,0 +1,20 @@
+error: too many `#` when terminating raw string
+  --> $DIR/raw-literal-too-many-long.rs:2:13
+   |
+LL |       let a = r##"This
+   |               ^-- The raw string has 2 leading `#`...
+   |  _____________|
+   | |
+LL | |     is
+LL | |     a
+LL | |     very
+...  |
+LL | |     lines
+LL | |     "###;
+   | |______--^
+   |        |
+   |        ...but is closed with 3.
+   = help: remove the unneeded `#`
+
+error: aborting due to previous error
+

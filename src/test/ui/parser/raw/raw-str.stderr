@@ -1,12 +1,12 @@
 error: unterminated raw string
-  --> $DIR/raw-byte-string-eof.rs:2:5
+  --> $DIR/raw_string.rs:2:13
    |
-LL |     br##"a"#;
-   |     ^^^^ unterminated raw string
+LL |     let x = r##"lol"#;
+   |             ^^^ unterminated raw string
 help: Raw string could be meant to end here
    |
-LL |     br##"a"##;
-   |           ^^^
+LL |     let x = r##"lol"##;
+   |                    ^^^
 help: Raw string could be meant to end here
    |
 LL | }"##

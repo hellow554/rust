@@ -2,9 +2,10 @@ error: unterminated raw string
   --> $DIR/raw-str-unterminated.rs:2:5
    |
 LL |     r#" string literal goes on
-   |     ^ unterminated raw string
-   |
-   = note: this raw string should be terminated with `"#`
+   |     ^^ unterminated raw string
+LL |         and on
+LL |
+   |                                         - help: Raw string could be meant to end here: `"#`
 
 error: aborting due to previous error
 

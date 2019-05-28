@@ -1,4 +1,5 @@
 static s: &'static str =
-    r#"
-      "## //~ ERROR expected one of `.`, `;`, `?`, or an operator, found `#`
-;
+    r#" //~ ERROR too many `#` when terminating raw string
+      "##;
+
+fn main() {}
