@@ -167,7 +167,7 @@ impl<'a> StringReader<'a> {
 
     fn fail_unterminated_raw_string(&self, start: Span, hash_count: u16, spans: Vec<Span>) -> ! {
         const SPAN_THRESHOLD: usize = 3;
-        const MSG_STR: &str = "Raw string could be meant to end here";
+        const MSG_STR: &str = "you might have meant to end the raw string here";
         let hash_str = format!("\"{}", "#".repeat(hash_count as usize));
         let spans_len = spans.len();
 
@@ -176,15 +176,19 @@ impl<'a> StringReader<'a> {
 
         for s in spans {
             if spans_len < SPAN_THRESHOLD {
-                err.span_suggestion(s,
-                                    MSG_STR,
-                                    hash_str.clone(),
-                                    Applicability::MaybeIncorrect);
+                err.span_suggestion(
+                    s,
+                    MSG_STR,
+                    hash_str.clone(),
+                    Applicability::MaybeIncorrect
+                );
             } else {
-                err.tool_only_span_suggestion(s,
-                                              MSG_STR,
-                                              hash_str.clone(),
-                                              Applicability::MaybeIncorrect);
+                err.tool_only_span_suggestion(
+                    s,
+                    MSG_STR,
+                    hash_str.clone(),
+                    Applicability::MaybeIncorrect
+                );
             }
         }
 
@@ -1329,10 +1333,17 @@ impl<'a> StringReader<'a> {
         while self.ch_is('#') {
             if hash_count == 65535 {
                 let bpos = self.next_pos;
-                self.fatal_span_(start_bpos,
-                                 bpos,
-                                 "too many `#` symbols: raw strings may be \
-                                 delimited by up to 65535 `#` symbols").raise();
+                let msg = match raw_type {
+                    RawStringType::Unicode => "too many `#` symbols: raw strings may be \
+                                               delimited by up to 65535 `#` symbols",
+                    RawStringType::Byte => "too many `#` symbols: raw byte strings may be \
+                                            delimited by up to 65535 `#` symbols",
+                };
+                self.fatal_span_(
+                    start_bpos,
+                    bpos,
+                    msg
+                ).raise();
             }
             self.bump();
             hash_count += 1;
@@ -1340,17 +1351,21 @@ impl<'a> StringReader<'a> {
         let bpos_span = self.mk_sp(start_bpos, self.pos);
 
         match self.ch {
-            None => self.fail_unterminated_raw_string(bpos_span,
-                                                      hash_count,
-                                                      vec![self.mk_sp(self.pos, self.pos)]),
+            None => self.fail_unterminated_raw_string(
+                        bpos_span,
+                        hash_count,
+                        vec![self.mk_sp(self.pos, self.pos)]
+                    ),
             Some('"') => {},
             Some(c) => {
                 let last_bpos = self.pos;
-                self.fatal_span_char(start_bpos,
-                                     last_bpos,
-                                     "found invalid character; only `#` is allowed \
-                                      in raw string delimitation",
-                                     c).raise();
+                self.fatal_span_char(
+                    start_bpos,
+                    last_bpos,
+                    "found invalid character; only `#` is allowed \
+                    in raw string delimitation",
+                    c
+                ).raise();
             }
         }
 
@@ -1363,7 +1378,6 @@ impl<'a> StringReader<'a> {
         'outer: loop {
             match (self.ch, raw_type) {
                 (None, _) => {
-                    spans.push(self.mk_sp(self.pos, self.pos));
                     self.fail_unterminated_raw_string(bpos_span, hash_count, spans);
                 },
                 (Some('"'), _) => {
@@ -1380,10 +1394,11 @@ impl<'a> StringReader<'a> {
                 (Some('\r'), RawStringType::Unicode) => {
                     if !self.nextch_is('\n') {
                         let last_bpos = self.pos;
-                        self.err_span_(start_bpos,
-                                       last_bpos,
-                                       "bare CR not allowed in raw string, use \\r \
-                                        instead");
+                        self.err_span_(
+                            start_bpos,
+                            last_bpos,
+                            "bare CR not allowed in raw string, use \\r instead"
+                        );
                         valid = false;
                     }
                 }
@@ -1412,10 +1427,13 @@ impl<'a> StringReader<'a> {
 
             let mut err = self.sess
                 .span_diagnostic.struct_span_err(sp, "too many `#` when terminating raw string");
-            err.span_label(sp_beg, format!("The raw string has {} leading `#`...", hash_count));
-            err.span_label(sp_end,
-                           format!("...but is closed with {}.",
-                                   self.pos.0 - lo.0 + hash_count as u32));
+            err.span_label(sp_beg, format!("this raw string has {} leading `#`...", hash_count));
+            err.span_label(
+                sp_end,
+                format!("...but is closed with {}.",
+                    self.pos.0 - lo.0 + hash_count as u32
+                )
+            );
             err.span_suggestion_hidden(
                 self.mk_sp(lo, self.pos),
                 "remove the unneeded `#`",

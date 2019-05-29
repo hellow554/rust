@@ -3,14 +3,10 @@ error: unterminated raw string
    |
 LL |     br##"a"#;
    |     ^^^^ unterminated raw string
-help: Raw string could be meant to end here
+help: you might have meant to end the raw string here
    |
 LL |     br##"a"##;
    |           ^^^
-help: Raw string could be meant to end here
-   |
-LL | }"##
-   |   ^^^
 
 error: aborting due to previous error
 

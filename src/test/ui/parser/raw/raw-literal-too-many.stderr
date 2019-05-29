@@ -5,7 +5,7 @@ LL |     let foo = r##"bar"####;
    |               ^--^^^^^----
    |                |      |
    |                |      ...but is closed with 4.
-   |                The raw string has 2 leading `#`...
+   |                this raw string has 2 leading `#`...
    = help: remove the unneeded `#`
 
 error: aborting due to previous error

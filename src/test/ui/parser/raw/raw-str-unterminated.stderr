@@ -3,9 +3,6 @@ error: unterminated raw string
    |
 LL |     r#" string literal goes on
    |     ^^ unterminated raw string
-LL |         and on
-LL |
-   |                                         - help: Raw string could be meant to end here: `"#`
 
 error: aborting due to previous error
 

@@ -2,7 +2,7 @@ error: too many `#` when terminating raw string
   --> $DIR/raw-str-unbalanced.rs:2:5
    |
 LL |       r#"
-   |       ^- The raw string has 1 leading `#`...
+   |       ^- this raw string has 1 leading `#`...
    |  _____|
    | |
 LL | |       "##;
