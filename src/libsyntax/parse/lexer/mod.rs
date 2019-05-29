@@ -201,6 +201,29 @@ impl<'a> StringReader<'a> {
         FatalError.raise();
     }
 
+    fn fail_incorrect_raw_string_delimiter(&mut self, start: BytePos) -> ! {
+        loop {
+            match self.ch {
+                Some('#') | Some('"') => break,
+                _ => self.bump(),
+            }
+        }
+        let end = self.pos;
+        let span = self.mk_sp(start, end);
+        let mut err = self.sess.span_diagnostic.struct_span_fatal(
+            span,
+            "found invalid character; only `#` is allowed in raw string delimitation",
+        );
+        err.span_suggestion_hidden(
+            span,
+            "replace with `#`",
+            format!("{}", "#".repeat((end.0 - start.0) as usize)),
+            Applicability::MachineApplicable,
+        );
+        err.emit();
+        FatalError.raise();
+    }
+
     fn fatal(&self, m: &str) -> FatalError {
         self.fatal_span(self.peek_span, m)
     }
@@ -328,16 +351,6 @@ impl<'a> StringReader<'a> {
     /// Report a lexical error spanning [`from_pos`, `to_pos`).
     fn err_span_(&self, from_pos: BytePos, to_pos: BytePos, m: &str) {
         self.err_span(self.mk_sp(from_pos, to_pos), m)
-    }
-
-    /// Report a lexical error spanning [`from_pos`, `to_pos`), appending an
-    /// escaped character to the error message
-    fn fatal_span_char(&self, from_pos: BytePos, to_pos: BytePos, m: &str, c: char) -> FatalError {
-        let mut m = m.to_string();
-        m.push_str(": ");
-        push_escaped_char(&mut m, c);
-
-        self.fatal_span_(from_pos, to_pos, &m[..])
     }
 
     fn struct_span_fatal(&self, from_pos: BytePos, to_pos: BytePos, m: &str)
@@ -1357,16 +1370,7 @@ impl<'a> StringReader<'a> {
                         vec![self.mk_sp(self.pos, self.pos)]
                     ),
             Some('"') => {},
-            Some(c) => {
-                let last_bpos = self.pos;
-                self.fatal_span_char(
-                    start_bpos,
-                    last_bpos,
-                    "found invalid character; only `#` is allowed \
-                    in raw string delimitation",
-                    c
-                ).raise();
-            }
+            Some(_) => self.fail_incorrect_raw_string_delimiter(self.pos),
         }
 
         self.bump();
